@@ -162,28 +162,22 @@ static inline void deviceLog(const String &msg) {
   notifyBLE(msg);
 }
 
-/* ---------- Status LED: never actively driven, internal pull only ----------
-   The pin is always left in INPUT mode - it is never switched to OUTPUT, so
-   it is never driven with a strong push-pull signal. "On" is
-   INPUT_PULLUP: the ~45k ohm internal pull-up is the only thing sourcing
-   current through the onboard LED (wired pin -> resistor -> LED -> GND), so
-   it lights dimly rather than at full brightness. "Off" is INPUT_PULLDOWN,
-   holding the node LOW. Either way, if this pin ever ends up contested by
-   something else, the conflict is only ever against a weak internal
-   resistor, never a hard driver - full pull-based protection, at the cost
-   of brightness. Plain Arduino core API (INPUT_PULLUP/INPUT_PULLDOWN), no
-   extra include.
-   Off whenever nothing is happening; ledSetBusy(true) turns it on (dim),
+/* ---------- Status LED: plain push-pull OUTPUT, active HIGH ----------
+   Same pin/polarity as the stock Arduino Blink example for this board - the
+   onboard LED is wired for a normal driven HIGH/LOW output, not open-drain,
+   so that's what this uses. No timer, no extra library - just digitalWrite.
+   Off whenever nothing is happening; ledSetBusy(true) turns it on solid,
    ledSetBusy(false) turns it off. Called around every partition op: OTA to
    app/data/nvs, and manual BLE DATA/NVS read or write. ---------- */
 #if ENABLE_STATUS_LED
 volatile bool ledBusy = false;
 
 static inline void ledApply(bool on) {
-  pinMode(STATUS_LED_PIN, on ? INPUT_PULLUP : INPUT_PULLDOWN);
+  digitalWrite(STATUS_LED_PIN, on ? HIGH : LOW);
 }
 
 void setupStatusLed() {
+  pinMode(STATUS_LED_PIN, OUTPUT);
   ledApply(false);
 }
 
