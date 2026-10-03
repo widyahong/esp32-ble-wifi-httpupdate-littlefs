@@ -54,7 +54,7 @@ static const size_t OTA_SUFFIX_NVS_HEX_LEN  = sizeof(OTA_SUFFIX_NVS_HEX);
 #define NVS_SECURITY_KEY            "boundmac"
 #define WIFI_CONNECT_TIMEOUT_MS 15000
 
-// Status LED: not part of the BLE protocol, not documented anywhere else -
+// Status LED: not part of the BLE protocol,
 // off at idle, solid on only while a partition (app/data/nvs) is actually
 // being read or written - OTA to any of the three, or a manual BLE
 // DATA/NVS read or write. No activity = no light at all.
