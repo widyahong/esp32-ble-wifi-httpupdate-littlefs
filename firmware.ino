@@ -58,7 +58,9 @@ static const size_t OTA_SUFFIX_NVS_HEX_LEN  = sizeof(OTA_SUFFIX_NVS_HEX);
 // off at idle, solid on only while a partition (app/data/nvs) is actually
 // being read or written - OTA to any of the three, or a manual BLE
 // DATA/NVS read or write. No activity = no light at all.
-#define STATUS_LED_PIN           2       // <-- wire LED cathode here, anode (through a resistor) to 3V3
+// Using the dev board's onboard LED on GPIO2 - same pin/polarity as the
+// stock Blink example (active HIGH, plain push-pull), so no special wiring.
+#define STATUS_LED_PIN           2
 
 // --- Feature toggles ---
 // Use 1/0 (not true/false) so #if actually strips disabled code at compile
@@ -160,32 +162,28 @@ static inline void deviceLog(const String &msg) {
   notifyBLE(msg);
 }
 
-/* ---------- Status LED: open-drain + internal pull-up, not push-pull ----------
-   STATUS_LED_PIN is configured OUTPUT_OPEN_DRAIN with the internal pull-up
-   enabled, instead of a normal push-pull OUTPUT. Driving it LOW sinks
-   current through the LED to light it; "off" just releases the pin and lets
-   the internal weak pull-up hold it HIGH. If anything else ever ends up
-   connected to this pin and drives it the other way, the conflict is only
-   ever against a weak internal resistor (tens of kOhm), never a hard
-   push-pull drive fighting another hard drive - so neither side can be
-   overloaded.
-
-   No timer, no extra library - just digitalWrite. Off whenever nothing is
-   happening; ledSetBusy(true) turns it on solid, ledSetBusy(false) turns it
-   off. Called around every partition op: OTA to app/data/nvs, and manual
-   BLE DATA/NVS read or write. ---------- */
+/* ---------- Status LED: never actively driven, internal pull only ----------
+   The pin is always left in INPUT mode - it is never switched to OUTPUT, so
+   it is never driven with a strong push-pull signal. "On" is
+   INPUT_PULLUP: the ~45k ohm internal pull-up is the only thing sourcing
+   current through the onboard LED (wired pin -> resistor -> LED -> GND), so
+   it lights dimly rather than at full brightness. "Off" is INPUT_PULLDOWN,
+   holding the node LOW. Either way, if this pin ever ends up contested by
+   something else, the conflict is only ever against a weak internal
+   resistor, never a hard driver - full pull-based protection, at the cost
+   of brightness. Plain Arduino core API (INPUT_PULLUP/INPUT_PULLDOWN), no
+   extra include.
+   Off whenever nothing is happening; ledSetBusy(true) turns it on (dim),
+   ledSetBusy(false) turns it off. Called around every partition op: OTA to
+   app/data/nvs, and manual BLE DATA/NVS read or write. ---------- */
 #if ENABLE_STATUS_LED
 volatile bool ledBusy = false;
 
 static inline void ledApply(bool on) {
-  digitalWrite(STATUS_LED_PIN, on ? LOW : HIGH); // LOW = sink/lit, HIGH = released/off
+  pinMode(STATUS_LED_PIN, on ? INPUT_PULLUP : INPUT_PULLDOWN);
 }
 
 void setupStatusLed() {
-  // OUTPUT_OPEN_DRAIN | PULLUP: Arduino-ESP32's pinMode() takes these as
-  // combinable flags, so the internal pull-up is enabled through the same
-  // call - no driver/gpio.h, no direct ESP-IDF call needed.
-  pinMode(STATUS_LED_PIN, OUTPUT_OPEN_DRAIN | PULLUP);
   ledApply(false);
 }
 
